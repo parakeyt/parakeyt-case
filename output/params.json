@@ -1,0 +1,121 @@
+{
+  "pcb_len": 103.95,
+  "pcb_wid": 83.9,
+  "pcb_thick": 1.6,
+  "wall_thick": 2.0,
+  "bottom_thick": 2.0,
+  "clear_above_pcb": 5.0,
+  "plate_thick": 2.0,
+  "gap_above_pcb": 0.5,
+  "pcb_clearance": 1.0,
+  "pcb_floor_gap": 0.5,
+  "ledge_height": 2.0,
+  "ledge_thick": 2.5,
+  "key_size": 13.97,
+  "switch_positions": [
+    [
+      33.171,
+      13.1278
+    ],
+    [
+      52.371,
+      13.1278
+    ],
+    [
+      71.571,
+      13.1278
+    ],
+    [
+      90.771,
+      13.1278
+    ],
+    [
+      33.171,
+      32.3278
+    ],
+    [
+      52.371,
+      32.3278
+    ],
+    [
+      71.571,
+      32.3278
+    ],
+    [
+      90.771,
+      32.3278
+    ],
+    [
+      33.171,
+      51.5278
+    ],
+    [
+      52.371,
+      51.5278
+    ],
+    [
+      71.571,
+      51.5278
+    ],
+    [
+      90.771,
+      51.5278
+    ],
+    [
+      33.171,
+      70.7278
+    ],
+    [
+      52.371,
+      70.7278
+    ],
+    [
+      71.571,
+      70.7278
+    ],
+    [
+      90.771,
+      70.7278
+    ]
+  ],
+  "grid_cols": 4,
+  "grid_rows": 4,
+  "key_pitch_x": 19.2,
+  "key_pitch_y": 19.2,
+  "usb_x": 12.97,
+  "usb_y": 3.46,
+  "usb_angle": 0,
+  "usb_edge": "top",
+  "usb_width": 9.0,
+  "usb_height": 4.0,
+  "usb_bottom_clear": 0.8,
+  "mcu_x": 12.97,
+  "mcu_y": 15.46,
+  "mcu_footprint": "RP2040-Zero:rp2040-zero-tht",
+  "mcu_local_bounds": [
+    -10.4,
+    -12.75,
+    10.9,
+    13.25
+  ],
+  "mcu_width": 21.3,
+  "mcu_height": 26.0,
+  "mcu_bbox": [
+    2.57,
+    2.71,
+    23.87,
+    28.71
+  ],
+  "_board_origin_kicad": [
+    12.1,
+    12.1
+  ],
+  "_board_bbox_kicad": {
+    "min_x": 12.1,
+    "min_y": 12.1,
+    "max_x": 116.05,
+    "max_y": 96.0,
+    "width": 103.95,
+    "height": 83.9
+  }
+}
