@@ -64,26 +64,15 @@
 		(uuid "2ff3983a-a035-438b-bd39-e58ab2a438dd")
 	)
 	(fp_rect
-		(start -6 -11.75)
-		(end 6 9)
-		(stroke
-			(width 0.1)
-			(type default)
-		)
-		(fill no)
-		(layer "F.SilkS")
-		(uuid "95c8b371-95cb-477a-9e07-c65c156856aa")
-	)
-	(fp_rect
-		(start -10 -12.5)
-		(end 10 12.5)
+		(start -6 -12)
+		(end 6 8.5)
 		(stroke
 			(width 0.05)
 			(type default)
 		)
 		(fill no)
-		(layer "F.CrtYd")
-		(uuid "272f123e-0a5f-42cf-89e8-4cd210a52e06")
+		(layer "Edge.Cuts")
+		(uuid "ab7698e0-c6b1-4bec-aa8d-a80a114be843")
 	)
 	(pad "1" thru_hole oval
 		(at 7.62 -10.16 180)
@@ -314,6 +303,38 @@
 		(layers "*.Cu" "*.Mask")
 		(remove_unused_layers no)
 		(uuid "8a11f86e-586e-495d-a11e-a1e650589934")
+	)
+	(zone
+		(net 0)
+		(net_name "")
+		(layers "F.Cu" "B.Cu")
+		(uuid "72e317e1-7d8d-47d7-9d63-f2a682b2cd2c")
+		(hatch edge 0.5)
+		(connect_pads
+			(clearance 0)
+		)
+		(min_thickness 0.25)
+		(filled_areas_thickness no)
+		(keepout
+			(tracks not_allowed)
+			(vias not_allowed)
+			(pads not_allowed)
+			(copperpour not_allowed)
+			(footprints not_allowed)
+		)
+		(placement
+			(enabled no)
+			(sheetname "")
+		)
+		(fill
+			(thermal_gap 0.5)
+			(thermal_bridge_width 0.5)
+		)
+		(polygon
+			(pts
+				(xy -6.75 -12) (xy -6.75 9.25) (xy 6.75 9.25) (xy 6.75 -12)
+			)
+		)
 	)
 	(embedded_fonts no)
 	(model "${KIPRJMOD}/components/RP2040-Zero/RP2040-Zero.3dshapes/RP2040-Zero.step"
