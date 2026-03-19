@@ -51,21 +51,21 @@ switch_positions = [
 ];
 
 // ----- USB connector -----
-usb_x        = 12.97;
-usb_y        = 3.46;
+usb_x        = 12.28;
+usb_y        = 0.06;
 usb_edge     = "top";
 usb_width    = 9.0;
 usb_height   = 4.0;
 usb_bottom_clear = 0.8;
 
 // ----- MCU -----
-mcu_x        = 12.97;
-mcu_y        = 15.46;
-mcu_width    = 21.3;
-mcu_height   = 26.0;
-// MCU bounding box (board-relative): [2.57, 2.71] to [23.87, 28.71]
-mcu_bbox_x0  = 2.57;
-mcu_bbox_y0  = 2.71;
-mcu_bbox_x1  = 23.87;
-mcu_bbox_y1  = 28.71;
+mcu_x        = 12.28;
+mcu_y        = 12.06;
+mcu_width    = 19.0;
+mcu_height   = 24.0;
+// MCU bounding box (board-relative): [2.78, 0.06] to [21.78, 24.06]
+mcu_bbox_x0  = 2.78;
+mcu_bbox_y0  = 0.06;
+mcu_bbox_x1  = 21.78;
+mcu_bbox_y1  = 24.06;
 

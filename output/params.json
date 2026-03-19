@@ -82,29 +82,29 @@
   "grid_rows": 4,
   "key_pitch_x": 19.2,
   "key_pitch_y": 19.2,
-  "usb_x": 12.97,
-  "usb_y": 3.46,
+  "usb_x": 12.28,
+  "usb_y": 0.06,
   "usb_angle": 0,
   "usb_edge": "top",
   "usb_width": 9.0,
   "usb_height": 4.0,
   "usb_bottom_clear": 0.8,
-  "mcu_x": 12.97,
-  "mcu_y": 15.46,
+  "mcu_x": 12.28,
+  "mcu_y": 12.06,
   "mcu_footprint": "RP2040-Zero:rp2040-zero-tht",
   "mcu_local_bounds": [
-    -10.4,
-    -12.75,
-    10.9,
-    13.25
+    -9.5,
+    -12.0,
+    9.5,
+    12.0
   ],
-  "mcu_width": 21.3,
-  "mcu_height": 26.0,
+  "mcu_width": 19.0,
+  "mcu_height": 24.0,
   "mcu_bbox": [
-    2.57,
-    2.71,
-    23.87,
-    28.71
+    2.78,
+    0.06,
+    21.78,
+    24.06
   ],
   "_board_origin_kicad": [
     12.1,
