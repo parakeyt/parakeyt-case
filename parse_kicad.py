@@ -414,41 +414,26 @@ def normalize_switch_angle(raw_angle):
         return a
 
 
-def match_config_to_switches(config_keys, switches, origin_x, origin_y, key_unit_mm=19.05):
+def _spatial_match(config_keys, switches, origin_x, origin_y, key_unit_mm):
     """
-    Match each config key to its closest PCB switch by spatial proximity.
-    
-    Config positions are in key units (1u = 19.05mm). PCB switches are in
-    absolute mm. We convert config to mm, then for each switch find the
-    nearest config key.
-    
-    Returns: list of (switch_dict, config_key_dict_or_None) tuples,
-             one per switch in the input order.
+    Fallback matcher: greedy nearest-neighbor matching by spatial position.
+    Used when row-by-row matching is not applicable (e.g. curved layouts
+    like Alice where keys within a "row" have different Y values).
     """
     if not config_keys:
         return [(sw, None) for sw in switches]
 
-    # Convert config positions to mm (relative to config origin = top-left)
-    # We need to align the config coordinate system with the PCB's.
-    # Strategy: compute the centroid of config keys (in mm) and the centroid
-    # of switches (board-relative), then offset by the difference.
     config_mm = [(k['x'] * key_unit_mm, k['y'] * key_unit_mm) for k in config_keys]
-    sw_rel    = [(sw['x'] - origin_x, sw['y'] - origin_y) for sw in switches]
-
-    if not config_mm or not sw_rel:
-        return [(sw, None) for sw in switches]
+    sw_rel = [(sw['x'] - origin_x, sw['y'] - origin_y) for sw in switches]
 
     cfg_cx = sum(p[0] for p in config_mm) / len(config_mm)
     cfg_cy = sum(p[1] for p in config_mm) / len(config_mm)
-    sw_cx  = sum(p[0] for p in sw_rel) / len(sw_rel)
-    sw_cy  = sum(p[1] for p in sw_rel) / len(sw_rel)
+    sw_cx = sum(p[0] for p in sw_rel) / len(sw_rel)
+    sw_cy = sum(p[1] for p in sw_rel) / len(sw_rel)
     dx = sw_cx - cfg_cx
     dy = sw_cy - cfg_cy
-
-    # Translated config positions (now in board-relative mm)
     config_aligned = [(c[0] + dx, c[1] + dy) for c in config_mm]
 
-    # Greedy nearest-neighbor matching
     matched = []
     used = set()
     for sw, swp in zip(switches, sw_rel):
@@ -466,6 +451,112 @@ def match_config_to_switches(config_keys, switches, origin_x, origin_y, key_unit
             matched.append((sw, config_keys[best_idx]))
         else:
             matched.append((sw, None))
+    return matched
+
+
+def match_config_to_switches(config_keys, switches, origin_x, origin_y, key_unit_mm=19.05):
+    """
+    Match config keys to PCB switches.
+    
+    Two strategies, picked automatically:
+    
+    A) **Row-by-row left-to-right** (used when both layouts have a clean
+       grid with the same number of rows): handles wide multi-sensor keys
+       like a 3-sensor space bar by letting wide config keys consume
+       multiple consecutive PCB switches in their row.
+    
+    B) **Spatial nearest-neighbor** (fallback for curved/staggered layouts
+       like Alice where keys in a "row" have different Y values): each
+       config key claims its nearest PCB switch.
+    
+    Returns: list of (switch_dict, config_key_dict_or_None) tuples in the
+             same order as the input switches list.
+    """
+    if not config_keys:
+        return [(sw, None) for sw in switches]
+
+    KEY_CUTOUT_1U = 13.97
+
+    # ----- Group config keys into rows (by exact Y) -----
+    config_rows = {}
+    for k in config_keys:
+        y = round(k['y'], 3)
+        config_rows.setdefault(y, []).append(k)
+    for y in config_rows:
+        config_rows[y].sort(key=lambda k: k['x'])
+    config_row_ys = sorted(config_rows.keys())
+
+    # ----- Group PCB switches into rows (by Y proximity) -----
+    sw_rel = [(i, sw, sw['x'] - origin_x, sw['y'] - origin_y)
+              for i, sw in enumerate(switches)]
+    pcb_rows = []
+    used_indices = set()
+    sw_sorted_by_y = sorted(sw_rel, key=lambda t: (t[3], t[2]))
+    row_tol = key_unit_mm * 0.5
+    for entry in sw_sorted_by_y:
+        i, sw, x, y = entry
+        if i in used_indices:
+            continue
+        row = [entry]
+        used_indices.add(i)
+        for entry2 in sw_sorted_by_y:
+            i2, sw2, x2, y2 = entry2
+            if i2 in used_indices:
+                continue
+            if abs(y2 - y) <= row_tol:
+                row.append(entry2)
+                used_indices.add(i2)
+        row.sort(key=lambda t: t[2])
+        pcb_rows.append(row)
+    pcb_rows.sort(key=lambda row: row[0][3])
+
+    # ----- Pick strategy based on row count alignment -----
+    # Row-by-row matching only works if config row count matches PCB row count.
+    # Otherwise (e.g. Alice with many fine-grained Y positions), fall back to
+    # spatial matching.
+    if len(config_row_ys) != len(pcb_rows):
+        return _spatial_match(config_keys, switches, origin_x, origin_y, key_unit_mm)
+
+    # ----- Row-by-row left-to-right matching -----
+    sw_to_cfg = [None] * len(switches)
+    for ri in range(len(config_row_ys)):
+        cfg_row = config_rows[config_row_ys[ri]]
+        pcb_row = pcb_rows[ri]
+
+        cfg_idx = 0
+        pcb_idx = 0
+        while cfg_idx < len(cfg_row) and pcb_idx < len(pcb_row):
+            cfg_key = cfg_row[cfg_idx]
+            size_u = float(cfg_key.get('size', 1.0))
+            cw = KEY_CUTOUT_1U + (size_u - 1.0) * key_unit_mm
+
+            primary_entry = pcb_row[pcb_idx]
+            primary_si = primary_entry[0]
+            primary_x = primary_entry[2]
+            sw_to_cfg[primary_si] = id(cfg_key)
+            pcb_idx += 1
+
+            # Wide keys consume additional consecutive PCB switches
+            # whose X falls within the keycap's reach.
+            if size_u > 1.0:
+                while pcb_idx < len(pcb_row):
+                    candidate_entry = pcb_row[pcb_idx]
+                    candidate_x = candidate_entry[2]
+                    if candidate_x - primary_x > cw - 0.5 * key_unit_mm:
+                        break
+                    sw_to_cfg[candidate_entry[0]] = id(cfg_key)
+                    pcb_idx += 1
+
+            cfg_idx += 1
+
+    cfg_id_to_key = {id(k): k for k in config_keys}
+    matched = []
+    for si, sw in enumerate(switches):
+        cfg_id = sw_to_cfg[si]
+        if cfg_id is None:
+            matched.append((sw, None))
+        else:
+            matched.append((sw, cfg_id_to_key[cfg_id]))
     return matched
 
 
@@ -514,52 +605,76 @@ def compute_params(bbox, switches, usb_connector, mcu, tree=None,
     KEY_UNIT_MM = 19.05  # standard 1u spacing
     KEY_CUTOUT_1U = 13.97  # standard MX switch hole
     params['key_unit_mm'] = KEY_UNIT_MM
-    params['key_size'] = KEY_CUTOUT_1U  # default for cases without config
+    params['key_size'] = KEY_CUTOUT_1U
 
     # ----- Per-switch data: position, rotation, size -----
-    # Sort switches by Y then X for stable ordering
     sorted_switches = sorted(switches, key=lambda s: (s['y'], s['x']))
 
-    # Match config keys (if available) to switches
+    # Match config keys (if available) to PCB switches.
+    # The matcher allows wide config keys (>1u) to claim multiple PCB
+    # switches that fall within their keycap area (e.g. 3-sensor space bar).
     config_keys = config.get('keys', []) if config else []
     matches = match_config_to_switches(config_keys, sorted_switches,
                                        origin_x, origin_y, KEY_UNIT_MM)
 
+    # Group matches by config key identity. Multiple PCB switches can map
+    # to the same config key (wide keys with multiple sensors); we emit
+    # ONE cutout per config key, centered on the centroid of its sensors.
+    # PCB switches with no config match get their own 1u cutout.
+    seen_cfg_ids = {}  # id(cfg_key) -> index in switch_data
     switch_data = []
-    for sw, cfg_key in matches:
-        sx = round(sw['x'] - origin_x, 4)
-        sy = round(sw['y'] - origin_y, 4)
-        rot = round(normalize_switch_angle(sw.get('angle', 0)), 4)
 
-        # Determine key cutout size
-        # config size is in key units (1.0 = 1u, 2.0 = 2u, etc.)
-        # The cutout grows linearly with size in the long axis only.
-        if cfg_key:
+    for sw, cfg_key in matches:
+        sx_abs = sw['x']
+        sy_abs = sw['y']
+        rot_pcb = normalize_switch_angle(sw.get('angle', 0))
+
+        if cfg_key is not None:
+            cfg_id = id(cfg_key)
+            if cfg_id in seen_cfg_ids:
+                # This is a secondary sensor for an already-emitted cutout.
+                # Pull the existing entry's center toward this sensor's
+                # position so the cutout ends up at the centroid.
+                idx = seen_cfg_ids[cfg_id]
+                entry = switch_data[idx]
+                entry['_sensor_xs'].append(sx_abs)
+                entry['_sensor_ys'].append(sy_abs)
+                entry['x'] = round(sum(entry['_sensor_xs']) / len(entry['_sensor_xs']) - origin_x, 4)
+                entry['y'] = round(sum(entry['_sensor_ys']) / len(entry['_sensor_ys']) - origin_y, 4)
+                continue
+
             size_u = float(cfg_key.get('size', 1.0))
             label = cfg_key.get('label', '')
-            # Cutout: 1u side stays at KEY_CUTOUT_1U; long side scales
-            # by key units (each additional unit adds KEY_UNIT_MM)
             cutout_w = KEY_CUTOUT_1U + (size_u - 1.0) * KEY_UNIT_MM
             cutout_h = KEY_CUTOUT_1U
-            # Prefer config rotation if PCB angle wasn't extracted
             cfg_rot = float(cfg_key.get('rotation', 0))
-            if abs(rot) < 0.01 and abs(cfg_rot) > 0.01:
-                rot = cfg_rot
+            rot = rot_pcb if abs(rot_pcb) > 0.01 else cfg_rot
         else:
             size_u = 1.0
             label = ''
             cutout_w = KEY_CUTOUT_1U
             cutout_h = KEY_CUTOUT_1U
+            rot = rot_pcb
 
-        switch_data.append({
-            'x': sx,
-            'y': sy,
-            'rotation': rot,
+        entry = {
+            'x': round(sx_abs - origin_x, 4),
+            'y': round(sy_abs - origin_y, 4),
+            'rotation': round(rot, 4),
             'size_u': round(size_u, 4),
             'cutout_w': round(cutout_w, 4),
             'cutout_h': round(cutout_h, 4),
             'label': label,
-        })
+            '_sensor_xs': [sx_abs],
+            '_sensor_ys': [sy_abs],
+        }
+        if cfg_key is not None:
+            seen_cfg_ids[id(cfg_key)] = len(switch_data)
+        switch_data.append(entry)
+
+    # Strip internal tracking fields before returning
+    for entry in switch_data:
+        entry.pop('_sensor_xs', None)
+        entry.pop('_sensor_ys', None)
 
     params['switches'] = switch_data
     # Legacy field for backward compatibility (just positions)
