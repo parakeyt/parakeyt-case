@@ -242,55 +242,85 @@ def classify_footprints(footprints):
       - mcu
       - other
     
-    Adjust the matching patterns below to match YOUR footprint
-    names / references. Run with --dump first to see what's there.
+    Strategy: classify primarily by FOOTPRINT NAME rather than reference
+    designator — references can be anything (H1, SW1, S1, R1, etc.) but
+    footprint names are stable across designs.
     """
     switches = []
     usb_connector = None
     mcu = None
     other = []
 
+    # Footprint name keywords that indicate a key switch
+    SWITCH_KEYWORDS = [
+        'keyswitch', 'switch_mx', 'switch_choc', 'choc_v1', 'choc_v2',
+        'kailh', 'cherry_mx', 'gateron', 'mx_only', 'hall', 'ah49',
+        'sc59_dio',  # Project-specific: hall sensor footprint
+    ]
+    # Reference patterns that often indicate switches (used as a fallback)
+    SWITCH_REF_PATTERNS = [r'^SW\d', r'^H\d', r'^K\d']
+
+    # Footprint name keywords for MCU / dev boards.
+    # ORDER MATTERS: more specific keywords first. Generic package names
+    # like 'qfp'/'qfn' are checked LAST so they don't accidentally match
+    # auxiliary chips (analog muxes, port expanders, etc.).
+    MCU_KEYWORDS_PRIORITY = [
+        # Specific dev boards (highest priority)
+        ['rp2040', 'pro_micro', 'pro-micro', 'elite-c', 'elite_c',
+         'teensy', 'arduino', 'pi-pico', 'pi_pico'],
+        # MCU chip families (medium priority)
+        ['stm32', 'atmega', 'esp32', 'nrf52', 'nrf51'],
+        # Generic package names (lowest priority — only used if nothing else matches)
+        ['qfp', 'qfn', 'tqfp', 'lqfp'],
+    ]
+
+    # First pass: collect all potential MCU candidates with their priority tier
+    mcu_candidates = []  # list of (priority, fp)
+
     for fp in footprints:
         ref = fp['reference'].upper()
         name = fp['footprint_name'].lower()
         val = fp['value'].lower()
 
-        # ----- Hall effect switches -----
-        # H1-H16 with AH49 hall sensors, or SW* references
-        # Also: footprint contains 'keyswitch', 'switch', 'key', 'hall', 'mx', etc.
-        is_switch = False
-        if re.match(r'^H\d', ref) and ('key' in name or 'hall' in name or 'ah49' in name):
-            is_switch = True
-        elif re.match(r'^SW\d', ref):
-            is_switch = True
-        elif re.match(r'^S\d', ref) and ('switch' in name or 'key' in name or 'hall' in name
-                                          or 'mx' in name or 'kailh' in name or 'cherry' in name
-                                          or 'gateron' in name):
-            is_switch = True
-        elif 'keyswitch' in name or ('switch' in name.split(':')[-1] and 'sensor' not in name):
-            is_switch = True
+        # ----- Switches: name-based first, then reference fallback -----
+        is_switch = any(kw in name for kw in SWITCH_KEYWORDS)
+        if not is_switch:
+            for pat in SWITCH_REF_PATTERNS:
+                if re.match(pat, ref):
+                    if 'switch' in name or 'key' in name:
+                        is_switch = True
+                    break
 
         if is_switch:
             switches.append(fp)
             continue
 
         # ----- USB connector (standalone) -----
-        if 'usb' in name or 'usb' in val or (ref.startswith('J') and 'usb' in name):
+        if 'usb' in name or 'usb' in val:
             usb_connector = fp
             continue
 
-        # ----- MCU / dev board -----
-        # Matches: reference MCU*, U* with known MCU values
-        # Also catches dev board modules like RP2040-Zero, Arduino, etc.
-        if (ref.startswith('MCU') or ref.startswith('U')) and \
-           ('mcu' in val or 'rp2040' in val or 'rp2040' in name
-            or 'stm32' in val or 'atmega' in val or 'nrf' in val or 'esp32' in val
-            or 'arduino' in val or 'teensy' in val
-            or 'qfp' in name or 'qfn' in name or 'tqfp' in name or 'lqfp' in name):
-            mcu = fp
+        # ----- MCU / dev board: check priority tiers -----
+        matched_tier = None
+        for tier_idx, kw_list in enumerate(MCU_KEYWORDS_PRIORITY):
+            if any(kw in name for kw in kw_list) or any(kw in val for kw in kw_list):
+                matched_tier = tier_idx
+                break
+
+        if matched_tier is not None:
+            mcu_candidates.append((matched_tier, fp))
             continue
 
         other.append(fp)
+
+    # Pick the MCU candidate with the highest priority (lowest tier index)
+    if mcu_candidates:
+        mcu_candidates.sort(key=lambda x: x[0])
+        mcu = mcu_candidates[0][1]
+        # Anything else that matched (lower-priority MCU keywords)
+        # belongs in 'other' since we can only have one MCU
+        for tier, fp in mcu_candidates[1:]:
+            other.append(fp)
 
     return switches, usb_connector, mcu, other
 
@@ -356,12 +386,99 @@ MCU_MODULE_USB_OFFSETS = {
 }
 
 
-def compute_params(bbox, switches, usb_connector, mcu, tree=None, board_origin_mode='bbox'):
+def normalize_switch_angle(raw_angle):
     """
-    Compute all the parameters needed for OpenSCAD.
+    KiCad footprint angles for switches placed on the bottom-flipped layout
+    are typically 180 +/- tilt. Normalize to a tilt-from-vertical value.
     
-    KiCad uses absolute coordinates, but OpenSCAD case starts at (0,0).
+    Examples:
+        180  →   0  (straight)
+        170  →  10  (tilted +10°)
+        175  →   5  (tilted +5°)
+       -170  → -10  (tilted -10°)
+       -175  →  -5
+        190  →  10  (or -10, same thing for a square cutout)
+    
+    Returns angle in degrees, in range [-90, 90).
+    """
+    a = float(raw_angle) % 360
+    if a > 180:
+        a -= 360
+    # Now a is in [-180, 180]
+    # For switches placed at "180" baseline, subtract 180 to get tilt
+    if a >= 90:
+        return a - 180
+    elif a <= -90:
+        return a + 180
+    else:
+        return a
+
+
+def match_config_to_switches(config_keys, switches, origin_x, origin_y, key_unit_mm=19.05):
+    """
+    Match each config key to its closest PCB switch by spatial proximity.
+    
+    Config positions are in key units (1u = 19.05mm). PCB switches are in
+    absolute mm. We convert config to mm, then for each switch find the
+    nearest config key.
+    
+    Returns: list of (switch_dict, config_key_dict_or_None) tuples,
+             one per switch in the input order.
+    """
+    if not config_keys:
+        return [(sw, None) for sw in switches]
+
+    # Convert config positions to mm (relative to config origin = top-left)
+    # We need to align the config coordinate system with the PCB's.
+    # Strategy: compute the centroid of config keys (in mm) and the centroid
+    # of switches (board-relative), then offset by the difference.
+    config_mm = [(k['x'] * key_unit_mm, k['y'] * key_unit_mm) for k in config_keys]
+    sw_rel    = [(sw['x'] - origin_x, sw['y'] - origin_y) for sw in switches]
+
+    if not config_mm or not sw_rel:
+        return [(sw, None) for sw in switches]
+
+    cfg_cx = sum(p[0] for p in config_mm) / len(config_mm)
+    cfg_cy = sum(p[1] for p in config_mm) / len(config_mm)
+    sw_cx  = sum(p[0] for p in sw_rel) / len(sw_rel)
+    sw_cy  = sum(p[1] for p in sw_rel) / len(sw_rel)
+    dx = sw_cx - cfg_cx
+    dy = sw_cy - cfg_cy
+
+    # Translated config positions (now in board-relative mm)
+    config_aligned = [(c[0] + dx, c[1] + dy) for c in config_mm]
+
+    # Greedy nearest-neighbor matching
+    matched = []
+    used = set()
+    for sw, swp in zip(switches, sw_rel):
+        best_idx = -1
+        best_d2 = float('inf')
+        for i, cp in enumerate(config_aligned):
+            if i in used:
+                continue
+            d2 = (cp[0] - swp[0]) ** 2 + (cp[1] - swp[1]) ** 2
+            if d2 < best_d2:
+                best_d2 = d2
+                best_idx = i
+        if best_idx >= 0:
+            used.add(best_idx)
+            matched.append((sw, config_keys[best_idx]))
+        else:
+            matched.append((sw, None))
+    return matched
+
+
+def compute_params(bbox, switches, usb_connector, mcu, tree=None,
+                   config=None, board_origin_mode='bbox'):
+    """
+    Compute all the parameters needed for case/plate generation.
+    
+    KiCad uses absolute coordinates, but the case starts at (0,0).
     We translate everything relative to the board's bounding box origin.
+    
+    If a config dict is provided (parsed config.json), per-key sizes and
+    rotations are matched to PCB switches by spatial proximity.
     """
     if bbox is None:
         print("ERROR: No board outline found on Edge.Cuts layer!")
@@ -377,30 +494,78 @@ def compute_params(bbox, switches, usb_connector, mcu, tree=None, board_origin_m
     params['pcb_wid'] = round(bbox['height'], 4)
     params['pcb_thick'] = 1.6  # standard, could parse from stackup if present
 
-    # Case parameters (these are design choices, not from PCB)
+    # Case parameters (design choices, not from PCB)
     params['wall_thick'] = 2.0
     params['bottom_thick'] = 2.0
     params['clear_above_pcb'] = 5.0
     params['plate_thick'] = 2.0
     params['gap_above_pcb'] = 0.5
-    params['pcb_clearance'] = 1.0  # extra room around PCB in case
+    params['pcb_clearance'] = 1.0
     params['pcb_floor_gap'] = 0.5
 
     # Ledge parameters
     params['ledge_height'] = 2.0
     params['ledge_thick'] = 2.5
 
-    # Key switch positions (translated to board-relative coords)
-    params['key_size'] = 13.970  # standard MX switch cutout
-    switch_positions = []
-    for sw in sorted(switches, key=lambda s: (s['y'], s['x'])):
-        switch_positions.append([
-            round(sw['x'] - origin_x, 4),
-            round(sw['y'] - origin_y, 4)
-        ])
-    params['switch_positions'] = switch_positions
+    # Tilt (from config) — degrees of upward tilt at the back of the case
+    params['tilt_deg'] = float(config.get('tilt', 0)) if config else 0.0
 
-    # Detect grid layout
+    # Key unit and standard cutout size
+    KEY_UNIT_MM = 19.05  # standard 1u spacing
+    KEY_CUTOUT_1U = 13.97  # standard MX switch hole
+    params['key_unit_mm'] = KEY_UNIT_MM
+    params['key_size'] = KEY_CUTOUT_1U  # default for cases without config
+
+    # ----- Per-switch data: position, rotation, size -----
+    # Sort switches by Y then X for stable ordering
+    sorted_switches = sorted(switches, key=lambda s: (s['y'], s['x']))
+
+    # Match config keys (if available) to switches
+    config_keys = config.get('keys', []) if config else []
+    matches = match_config_to_switches(config_keys, sorted_switches,
+                                       origin_x, origin_y, KEY_UNIT_MM)
+
+    switch_data = []
+    for sw, cfg_key in matches:
+        sx = round(sw['x'] - origin_x, 4)
+        sy = round(sw['y'] - origin_y, 4)
+        rot = round(normalize_switch_angle(sw.get('angle', 0)), 4)
+
+        # Determine key cutout size
+        # config size is in key units (1.0 = 1u, 2.0 = 2u, etc.)
+        # The cutout grows linearly with size in the long axis only.
+        if cfg_key:
+            size_u = float(cfg_key.get('size', 1.0))
+            label = cfg_key.get('label', '')
+            # Cutout: 1u side stays at KEY_CUTOUT_1U; long side scales
+            # by key units (each additional unit adds KEY_UNIT_MM)
+            cutout_w = KEY_CUTOUT_1U + (size_u - 1.0) * KEY_UNIT_MM
+            cutout_h = KEY_CUTOUT_1U
+            # Prefer config rotation if PCB angle wasn't extracted
+            cfg_rot = float(cfg_key.get('rotation', 0))
+            if abs(rot) < 0.01 and abs(cfg_rot) > 0.01:
+                rot = cfg_rot
+        else:
+            size_u = 1.0
+            label = ''
+            cutout_w = KEY_CUTOUT_1U
+            cutout_h = KEY_CUTOUT_1U
+
+        switch_data.append({
+            'x': sx,
+            'y': sy,
+            'rotation': rot,
+            'size_u': round(size_u, 4),
+            'cutout_w': round(cutout_w, 4),
+            'cutout_h': round(cutout_h, 4),
+            'label': label,
+        })
+
+    params['switches'] = switch_data
+    # Legacy field for backward compatibility (just positions)
+    params['switch_positions'] = [[s['x'], s['y']] for s in switch_data]
+
+    # Detect grid layout (only meaningful for uniform grids)
     if len(switches) > 0:
         unique_x = sorted(set(round(s['x'] - origin_x, 2) for s in switches))
         unique_y = sorted(set(round(s['y'] - origin_y, 2) for s in switches))
@@ -740,15 +905,31 @@ difference() {
 
 def main():
     if len(sys.argv) < 2:
-        print("Usage: python3 parse_kicad.py <path/to/file.kicad_pcb> [--dump]")
+        print("Usage: python3 parse_kicad.py <path/to/file.kicad_pcb> [options]")
         print("")
         print("Options:")
-        print("  --dump    Print all footprints (use this first to identify")
-        print("            your switch/USB/MCU footprint names)")
+        print("  --dump            Print all footprints (use this first to identify")
+        print("                    your switch/USB/MCU footprint names)")
+        print("  --config <path>   Path to a config.json file with per-key sizes,")
+        print("                    rotations, and case options like tilt")
         sys.exit(1)
 
     pcb_path = sys.argv[1]
     dump_mode = '--dump' in sys.argv
+
+    # Parse --config flag
+    config = None
+    config_path = None
+    if '--config' in sys.argv:
+        idx = sys.argv.index('--config')
+        if idx + 1 < len(sys.argv):
+            config_path = sys.argv[idx + 1]
+            if not os.path.exists(config_path):
+                print(f"ERROR: Config file not found: {config_path}")
+                sys.exit(1)
+            with open(config_path, 'r') as f:
+                config = json.load(f)
+            print(f"Using config: {config_path}")
 
     if not os.path.exists(pcb_path):
         print(f"ERROR: File not found: {pcb_path}")
@@ -786,8 +967,11 @@ def main():
         print(f"{'='*60}")
         switches, usb, mcu, other = classify_footprints(footprints)
         print(f"  Switches found: {len(switches)}")
-        for s in switches:
-            print(f"    {s['reference']}: {s['footprint_name']} at ({s['x']:.3f}, {s['y']:.3f})")
+        for s in switches[:10]:
+            print(f"    {s['reference']}: {s['footprint_name']} at "
+                  f"({s['x']:.3f}, {s['y']:.3f}) angle={s['angle']}")
+        if len(switches) > 10:
+            print(f"    ... and {len(switches) - 10} more")
         print(f"  USB connector: {usb['reference'] if usb else 'NOT FOUND'}")
         print(f"  MCU:           {mcu['reference'] if mcu else 'NOT FOUND'}")
         print(f"  Other:         {len(other)} components")
@@ -802,26 +986,25 @@ def main():
     print(f"Switches:  {len(switches)}")
     print(f"USB:       {'found' if usb_connector else 'NOT FOUND'}")
     print(f"MCU:       {'found' if mcu else 'NOT FOUND'}")
+    if config:
+        print(f"Config:    {len(config.get('keys', []))} keys, "
+              f"tilt={config.get('tilt', 0)}°")
 
     # Compute parameters
-    params = compute_params(bbox, switches, usb_connector, mcu, tree=tree)
+    params = compute_params(bbox, switches, usb_connector, mcu,
+                            tree=tree, config=config)
 
     # Output directory
     out_dir = os.path.join(os.path.dirname(pcb_path), '..', 'output')
     os.makedirs(out_dir, exist_ok=True)
 
-    # Write JSON (for reference / debugging)
+    # Write JSON
     json_path = os.path.join(out_dir, 'params.json')
     with open(json_path, 'w') as f:
         json.dump(params, f, indent=2)
     print(f"  Written: {json_path}")
 
-    # Write OpenSCAD files
-    generate_scad_params_file(params, os.path.join(out_dir, 'params.scad'))
-    generate_case_scad(os.path.join(out_dir, 'bottom_case.scad'))
-    generate_plate_scad(os.path.join(out_dir, 'plate.scad'))
-
-    print("\nDone! Open output/bottom_case.scad or output/plate.scad in OpenSCAD.")
+    print("\nDone! Run generate_case.py to build the 3D models.")
 
 
 if __name__ == '__main__':

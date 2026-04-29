@@ -1,6 +1,6 @@
 {
-  "pcb_len": 103.95,
-  "pcb_wid": 83.9,
+  "pcb_len": 191.5,
+  "pcb_wid": 87.0,
   "pcb_thick": 1.6,
   "wall_thick": 2.0,
   "bottom_thick": 2.0,
@@ -11,87 +11,261 @@
   "pcb_floor_gap": 0.5,
   "ledge_height": 2.0,
   "ledge_thick": 2.5,
+  "tilt_deg": 0.0,
+  "key_unit_mm": 19.05,
   "key_size": 13.97,
+  "switches": [
+    {
+      "x": 10.05,
+      "y": 10.525,
+      "rotation": 0.0,
+      "size_u": 1.0,
+      "cutout_w": 13.97,
+      "cutout_h": 13.97,
+      "label": "Up"
+    },
+    {
+      "x": 29.1,
+      "y": 10.525,
+      "rotation": 0.0,
+      "size_u": 1.0,
+      "cutout_w": 13.97,
+      "cutout_h": 13.97,
+      "label": "Down"
+    },
+    {
+      "x": 162.45,
+      "y": 10.525,
+      "rotation": 0.0,
+      "size_u": 1.0,
+      "cutout_w": 13.97,
+      "cutout_h": 13.97,
+      "label": "Left"
+    },
+    {
+      "x": 181.5,
+      "y": 10.525,
+      "rotation": 0.0,
+      "size_u": 1.0,
+      "cutout_w": 13.97,
+      "cutout_h": 13.97,
+      "label": "Right"
+    },
+    {
+      "x": 10.05,
+      "y": 39.1,
+      "rotation": 0.0,
+      "size_u": 1.0,
+      "cutout_w": 13.97,
+      "cutout_h": 13.97,
+      "label": "A"
+    },
+    {
+      "x": 29.1,
+      "y": 39.1,
+      "rotation": 0.0,
+      "size_u": 1.0,
+      "cutout_w": 13.97,
+      "cutout_h": 13.97,
+      "label": "S"
+    },
+    {
+      "x": 48.15,
+      "y": 39.1,
+      "rotation": 0.0,
+      "size_u": 1.0,
+      "cutout_w": 13.97,
+      "cutout_h": 13.97,
+      "label": "D"
+    },
+    {
+      "x": 67.2,
+      "y": 39.1,
+      "rotation": 0.0,
+      "size_u": 1.0,
+      "cutout_w": 13.97,
+      "cutout_h": 13.97,
+      "label": "F"
+    },
+    {
+      "x": 124.35,
+      "y": 39.1,
+      "rotation": 0.0,
+      "size_u": 1.0,
+      "cutout_w": 13.97,
+      "cutout_h": 13.97,
+      "label": "J"
+    },
+    {
+      "x": 143.4,
+      "y": 39.1,
+      "rotation": 0.0,
+      "size_u": 1.0,
+      "cutout_w": 13.97,
+      "cutout_h": 13.97,
+      "label": "K"
+    },
+    {
+      "x": 162.45,
+      "y": 39.1,
+      "rotation": 0.0,
+      "size_u": 1.0,
+      "cutout_w": 13.97,
+      "cutout_h": 13.97,
+      "label": "L"
+    },
+    {
+      "x": 181.5,
+      "y": 39.1,
+      "rotation": 0.0,
+      "size_u": 1.0,
+      "cutout_w": 13.97,
+      "cutout_h": 13.97,
+      "label": ";"
+    },
+    {
+      "x": 86.25,
+      "y": 58.15,
+      "rotation": 0.0,
+      "size_u": 1.0,
+      "cutout_w": 13.97,
+      "cutout_h": 13.97,
+      "label": "Esc"
+    },
+    {
+      "x": 105.3,
+      "y": 58.15,
+      "rotation": 0.0,
+      "size_u": 1.0,
+      "cutout_w": 13.97,
+      "cutout_h": 13.97,
+      "label": "Enter"
+    },
+    {
+      "x": 19.575,
+      "y": 77.2,
+      "rotation": 0.0,
+      "size_u": 2.0,
+      "cutout_w": 33.02,
+      "cutout_h": 13.97,
+      "label": "Shift"
+    },
+    {
+      "x": 57.675,
+      "y": 77.2,
+      "rotation": 0.0,
+      "size_u": 2.0,
+      "cutout_w": 33.02,
+      "cutout_h": 13.97,
+      "label": "Space"
+    },
+    {
+      "x": 133.875,
+      "y": 77.2,
+      "rotation": 0.0,
+      "size_u": 2.0,
+      "cutout_w": 33.02,
+      "cutout_h": 13.97,
+      "label": "'"
+    },
+    {
+      "x": 171.975,
+      "y": 77.2,
+      "rotation": 0.0,
+      "size_u": 2.0,
+      "cutout_w": 33.02,
+      "cutout_h": 13.97,
+      "label": "RShift"
+    }
+  ],
   "switch_positions": [
     [
-      33.171,
-      13.1278
+      10.05,
+      10.525
     ],
     [
-      52.371,
-      13.1278
+      29.1,
+      10.525
     ],
     [
-      71.571,
-      13.1278
+      162.45,
+      10.525
     ],
     [
-      90.771,
-      13.1278
+      181.5,
+      10.525
     ],
     [
-      33.171,
-      32.3278
+      10.05,
+      39.1
     ],
     [
-      52.371,
-      32.3278
+      29.1,
+      39.1
     ],
     [
-      71.571,
-      32.3278
+      48.15,
+      39.1
     ],
     [
-      90.771,
-      32.3278
+      67.2,
+      39.1
     ],
     [
-      33.171,
-      51.5278
+      124.35,
+      39.1
     ],
     [
-      52.371,
-      51.5278
+      143.4,
+      39.1
     ],
     [
-      71.571,
-      51.5278
+      162.45,
+      39.1
     ],
     [
-      90.771,
-      51.5278
+      181.5,
+      39.1
     ],
     [
-      33.171,
-      70.7278
+      86.25,
+      58.15
     ],
     [
-      52.371,
-      70.7278
+      105.3,
+      58.15
     ],
     [
-      71.571,
-      70.7278
+      19.575,
+      77.2
     ],
     [
-      90.771,
-      70.7278
+      57.675,
+      77.2
+    ],
+    [
+      133.875,
+      77.2
+    ],
+    [
+      171.975,
+      77.2
     ]
   ],
-  "grid_cols": 4,
+  "grid_cols": 14,
   "grid_rows": 4,
-  "key_pitch_x": 19.2,
-  "key_pitch_y": 19.2,
-  "usb_x": 12.28,
-  "usb_y": 0.06,
+  "key_pitch_x": 9.52,
+  "key_pitch_y": 28.57,
+  "usb_x": 95.88,
+  "usb_y": 0.16,
   "usb_angle": 0,
   "usb_edge": "top",
   "usb_width": 9.0,
   "usb_height": 4.0,
   "usb_bottom_clear": 0.8,
-  "mcu_x": 12.28,
-  "mcu_y": 12.06,
-  "mcu_footprint": "RP2040-Zero:rp2040-zero-tht",
+  "mcu_x": 95.88,
+  "mcu_y": 12.16,
+  "mcu_footprint": "rp2040-zero-tht",
   "mcu_local_bounds": [
     -9.5,
     -12.0,
@@ -101,21 +275,21 @@
   "mcu_width": 19.0,
   "mcu_height": 24.0,
   "mcu_bbox": [
-    2.78,
-    0.06,
-    21.78,
-    24.06
+    86.38,
+    0.16,
+    105.38,
+    24.16
   ],
   "_board_origin_kicad": [
-    12.1,
-    12.1
+    9.0,
+    -1.0
   ],
   "_board_bbox_kicad": {
-    "min_x": 12.1,
-    "min_y": 12.1,
-    "max_x": 116.05,
-    "max_y": 96.0,
-    "width": 103.95,
-    "height": 83.9
+    "min_x": 9.0,
+    "min_y": -1.0,
+    "max_x": 200.5,
+    "max_y": 86.0,
+    "width": 191.5,
+    "height": 87.0
   }
 }

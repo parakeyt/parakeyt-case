@@ -25,7 +25,7 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from generate_case import load_params, make_bottom_case, make_plate
 
 try:
-    from ocp_vscode import show, show_object, set_defaults, Camera
+    from ocp_vscode import show, show_object, set_defaults
     HAS_VIEWER = True
 except ImportError:
     HAS_VIEWER = False
@@ -50,17 +50,26 @@ def main():
     plate = make_plate(p)
     
     if HAS_VIEWER:
-        set_defaults(reset_camera=Camera.RESET)
+        set_defaults(reset_camera=True)
 
-        # Show both models in the OCP viewer
-        show_object(case, name="Bottom Case")
+        # Compute case dimensions to place plate beside it
+        pcb_len = p['pcb_len'] + p['pcb_clearance']
+        pcb_wid = p['pcb_wid'] + p['pcb_clearance']
+        wall = p['wall_thick']
+        outer_len = pcb_len + 2 * wall
+        gap = 30  # mm of empty space between case and plate
 
-        # Position plate where it would sit in the case
-        plate_z = p['bottom_thick'] + p['pcb_thick'] + p['gap_above_pcb']
-        plate_positioned = plate.translate((p['wall_thick'], p['wall_thick'], plate_z))
-        show_object(plate_positioned, name="Positioning Plate")
-        
-        print("Models displayed in OCP CAD Viewer.")
+        # Show case at origin
+        show_object(case, name="Bottom Case",
+                    options={"color": "steelblue", "alpha": 0.8})
+
+        # Position plate to the right of the case (along +X), at Z=0
+        plate_offset_x = outer_len + gap
+        plate_positioned = plate.translate((plate_offset_x, 0, 0))
+        show_object(plate_positioned, name="Positioning Plate",
+                    options={"color": "orange", "alpha": 0.9})
+
+        print("Models displayed in OCP CAD Viewer (side by side).")
         print("Use mouse to rotate/zoom in the viewer panel.")
     else:
         print("No viewer available. Use generate_case.py to export STL/STEP files.")

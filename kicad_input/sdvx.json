@@ -1,0 +1,160 @@
+{
+  "width": 16,
+  "height": 16,
+  "mcu": {
+    "pos": {
+      "x": 5.5,
+      "y": 0.75,
+      "z": 0
+    },
+    "size": 1
+  },
+  "split": false,
+  "tilt": 0,
+  "keys": [
+    {
+      "x": 1,
+      "y": 2,
+      "z": 0,
+      "size": 1,
+      "rotation": 0,
+      "label": "A"
+    },
+    {
+      "x": 2,
+      "y": 2,
+      "z": 0,
+      "size": 1,
+      "rotation": 0,
+      "label": "S"
+    },
+    {
+      "x": 3,
+      "y": 2,
+      "z": 0,
+      "size": 1,
+      "rotation": 0,
+      "label": "D"
+    },
+    {
+      "x": 4,
+      "y": 2,
+      "z": 0,
+      "size": 1,
+      "rotation": 0,
+      "label": "F"
+    },
+    {
+      "x": 1.5,
+      "y": 4,
+      "z": 0,
+      "size": 2,
+      "rotation": 0,
+      "label": "Shift"
+    },
+    {
+      "x": 9.5,
+      "y": 4,
+      "z": 0,
+      "size": 2,
+      "rotation": 0,
+      "label": "RShift"
+    },
+    {
+      "x": 7.5,
+      "y": 4,
+      "z": 0,
+      "size": 2,
+      "rotation": 0,
+      "label": "'"
+    },
+    {
+      "x": 7,
+      "y": 2,
+      "z": 0,
+      "size": 1,
+      "rotation": 0,
+      "label": "J"
+    },
+    {
+      "x": 8,
+      "y": 2,
+      "z": 0,
+      "size": 1,
+      "rotation": 0,
+      "label": "K"
+    },
+    {
+      "x": 9,
+      "y": 2,
+      "z": 0,
+      "size": 1,
+      "rotation": 0,
+      "label": "L"
+    },
+    {
+      "x": 10,
+      "y": 2,
+      "z": 0,
+      "size": 1,
+      "rotation": 0,
+      "label": ";"
+    },
+    {
+      "x": 1,
+      "y": 0.5,
+      "z": 0,
+      "size": 1,
+      "rotation": 0,
+      "label": "Up"
+    },
+    {
+      "x": 2,
+      "y": 0.5,
+      "z": 0,
+      "size": 1,
+      "rotation": 0,
+      "label": "Down"
+    },
+    {
+      "x": 9,
+      "y": 0.5,
+      "z": 0,
+      "size": 1,
+      "rotation": 0,
+      "label": "Left"
+    },
+    {
+      "x": 10,
+      "y": 0.5,
+      "z": 0,
+      "size": 1,
+      "rotation": 0,
+      "label": "Right"
+    },
+    {
+      "x": 3.5,
+      "y": 4,
+      "z": 0,
+      "size": 2,
+      "rotation": 0,
+      "label": "Space"
+    },
+    {
+      "x": 6,
+      "y": 3,
+      "z": 0,
+      "size": 1,
+      "rotation": 0,
+      "label": "Enter"
+    },
+    {
+      "x": 5,
+      "y": 3,
+      "z": 0,
+      "size": 1,
+      "rotation": 0,
+      "label": "Esc"
+    }
+  ]
+}

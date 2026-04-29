@@ -3,13 +3,18 @@
 build.py — One-command pipeline: KiCad PCB → STL files.
 
 Usage:
-    python3 build.py kicad_input/reference-design_unrouted.kicad_pcb
+    python3 build.py <path/to/file.kicad_pcb> [--config <path/to/config.json>]
+
+Examples:
+    # Without config (uses defaults — uniform 1u keys, no rotation, no tilt)
+    python3 build.py kicad_input/reference-design.kicad_pcb
+
+    # With config (per-key sizes, rotations, and case tilt)
+    python3 build.py kicad_input/alice.kicad_pcb --config kicad_input/alice.json
 
 This runs:
-    1. parse_kicad.py  → output/params.json + params.scad
+    1. parse_kicad.py  → output/params.json
     2. generate_case.py → output/bottom_case.stl + plate.stl
-
-All output goes to the output/ directory.
 """
 
 import subprocess
@@ -18,7 +23,6 @@ import os
 
 
 def run(cmd, description):
-    """Run a command, print what's happening, and exit on failure."""
     print(f"\n{'='*50}")
     print(f"  {description}")
     print(f"{'='*50}")
@@ -30,10 +34,11 @@ def run(cmd, description):
 
 def main():
     if len(sys.argv) < 2:
-        print("Usage: python3 build.py <path/to/file.kicad_pcb>")
+        print("Usage: python3 build.py <path/to/file.kicad_pcb> [--config <path/to/config.json>]")
         print("")
-        print("Example:")
-        print("  python3 build.py kicad_input/reference-design_unrouted.kicad_pcb")
+        print("Examples:")
+        print("  python3 build.py kicad_input/reference-design.kicad_pcb")
+        print("  python3 build.py kicad_input/alice.kicad_pcb --config kicad_input/alice.json")
         sys.exit(1)
 
     pcb_path = sys.argv[1]
@@ -41,13 +46,26 @@ def main():
         print(f"ERROR: File not found: {pcb_path}")
         sys.exit(1)
 
+    # Optional config flag
+    config_args = []
+    if '--config' in sys.argv:
+        idx = sys.argv.index('--config')
+        if idx + 1 >= len(sys.argv):
+            print("ERROR: --config flag requires a path argument")
+            sys.exit(1)
+        config_path = sys.argv[idx + 1]
+        if not os.path.exists(config_path):
+            print(f"ERROR: Config file not found: {config_path}")
+            sys.exit(1)
+        config_args = ['--config', config_path]
+
     script_dir = os.path.dirname(os.path.abspath(__file__))
     params_json = os.path.join(script_dir, 'output', 'params.json')
 
-    # Step 1: Parse KiCad PCB
+    # Step 1: Parse KiCad PCB (+ optional config)
     run(
-        [sys.executable, os.path.join(script_dir, 'parse_kicad.py'), pcb_path],
-        "Step 1: Parsing KiCad PCB file"
+        [sys.executable, os.path.join(script_dir, 'parse_kicad.py'), pcb_path] + config_args,
+        "Step 1: Parsing KiCad PCB" + (" + config" if config_args else "")
     )
 
     # Step 2: Generate case + plate
