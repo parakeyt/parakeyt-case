@@ -146,10 +146,13 @@ def make_bottom_case(p):
     
     Tilt approach:
       1. Build the flat case at Z=[0, case_total_z]
-      2. Rotate around the front-bottom edge (X axis at Y=0, Z=0) by +tilt_deg.
-         This raises the back edge (max-Y) upward.
-      3. Add a triangular wedge that fills under the rotated case so the
-         result has a flat bottom at Z=0.
+      2. Rotate around the BACK edge (X axis at Y=outer_wid, Z=0) by
+         -tilt_deg. This raises the FRONT edge (min-Y, the USB side) upward.
+      3. Add a triangular wedge under the rotated case for a flat bottom.
+    
+    Why the front rises: the MCU/USB sits on the min-Y edge of the PCB,
+    and a positive `tilt` should tent the keyboard so the USB end is on
+    the higher side (typical for ergonomic tilt).
     """
     flat = make_flat_case(p)
 
@@ -166,18 +169,18 @@ def make_bottom_case(p):
 
     tilt_rad = math.radians(tilt_deg)
     wedge_h = outer_wid * math.tan(tilt_rad)
-    print(f"    Tilt: {tilt_deg}° → back raised by {wedge_h:.2f} mm")
+    print(f"    Tilt: {tilt_deg}° → front (USB side) raised by {wedge_h:.2f} mm")
 
-    # Rotate case around X axis through (0, 0, 0)
-    # Positive rotation around +X axis: +Y rotates toward +Z (back goes up)
-    tilted = flat.rotate((0, 0, 0), (1, 0, 0), tilt_deg)
+    # Rotate case around X axis at Y=outer_wid, Z=0 (back-bottom edge).
+    # Negative rotation: front (Y=0) lifts upward.
+    tilted = flat.rotate((0, outer_wid, 0), (1, outer_wid, 0), -tilt_deg)
 
-    # Build wedge under the case
-    # Profile in YZ plane: triangle (0,0) → (outer_wid, 0) → (outer_wid, wedge_h)
-    # Extruded along X by outer_len
+    # Wedge: triangle in YZ plane filling under the now-tilted case.
+    # Profile: (0, wedge_h) → (0, 0) → (outer_wid, 0). The front edge (Y=0)
+    # is high (wedge_h), the back edge (Y=outer_wid) is at floor (0).
     wedge = (
         cq.Workplane("YZ")
-        .polyline([(0, 0), (outer_wid, 0), (outer_wid, wedge_h)])
+        .polyline([(0, wedge_h), (0, 0), (outer_wid, 0)])
         .close()
         .extrude(outer_len)
     )
@@ -215,10 +218,9 @@ def make_plate(p):
         sy = sw['y']
         cw = sw['cutout_w']
         ch = sw['cutout_h']
-        # Negate the rotation: PCB is viewed from the bottom (components face
-        # down), so when we look at the top of the plate, all rotations are
-        # mirrored. Flipping the sign restores the intended visual rotation.
-        rot = -sw.get('rotation', 0)
+        # Rotation is already in user-facing coordinates (parse_kicad.py
+        # mirrors X and flips rotation sign for the PCB-flip during assembly).
+        rot = sw.get('rotation', 0)
 
         # Build a centered box, rotate around Z axis, then translate to (sx, sy)
         cut = cq.Workplane("XY").box(cw, ch, plate_t + 1)

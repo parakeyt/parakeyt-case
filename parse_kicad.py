@@ -676,6 +676,54 @@ def compute_params(bbox, switches, usb_connector, mcu, tree=None,
         entry.pop('_sensor_xs', None)
         entry.pop('_sensor_ys', None)
 
+    # ----- Add cutouts for unmatched config keys -----
+    # Some config keys may not have a corresponding PCB switch (e.g. Fn3
+    # in the alice config has no PCB sensor placed for it). We still want
+    # to make a plate cutout for these keycaps so the user can install
+    # the keycap they specified — even if the underlying sensor is missing.
+    if config_keys:
+        matched_cfg_ids = set(seen_cfg_ids.keys())
+        unmatched_cfg = [k for k in config_keys if id(k) not in matched_cfg_ids]
+        if unmatched_cfg:
+            # Compute alignment offset between config and PCB coordinate systems
+            # using the matched cutouts (they already have correct PCB-relative
+            # positions and we know what their config positions should be).
+            cfg_centers = []
+            sw_centers = []
+            for k in config_keys:
+                if id(k) not in seen_cfg_ids:
+                    continue
+                idx = seen_cfg_ids[id(k)]
+                size_u = float(k.get('size', 1.0))
+                cfg_cx = (k['x'] + size_u / 2.0) * KEY_UNIT_MM
+                cfg_cy = (k['y'] + 0.5) * KEY_UNIT_MM
+                cfg_centers.append((cfg_cx, cfg_cy))
+                sw_centers.append((switch_data[idx]['x'], switch_data[idx]['y']))
+            if cfg_centers:
+                # Find offset: average shift from config to plate coords
+                avg_cfg_x = sum(c[0] for c in cfg_centers) / len(cfg_centers)
+                avg_cfg_y = sum(c[1] for c in cfg_centers) / len(cfg_centers)
+                avg_sw_x = sum(s[0] for s in sw_centers) / len(sw_centers)
+                avg_sw_y = sum(s[1] for s in sw_centers) / len(sw_centers)
+                offset_x = avg_sw_x - avg_cfg_x
+                offset_y = avg_sw_y - avg_cfg_y
+                for k in unmatched_cfg:
+                    size_u = float(k.get('size', 1.0))
+                    cfg_cx = (k['x'] + size_u / 2.0) * KEY_UNIT_MM
+                    cfg_cy = (k['y'] + 0.5) * KEY_UNIT_MM
+                    cutout_w = KEY_CUTOUT_1U + (size_u - 1.0) * KEY_UNIT_MM
+                    cutout_h = KEY_CUTOUT_1U
+                    switch_data.append({
+                        'x': round(cfg_cx + offset_x, 4),
+                        'y': round(cfg_cy + offset_y, 4),
+                        'rotation': round(float(k.get('rotation', 0)), 4),
+                        'size_u': round(size_u, 4),
+                        'cutout_w': round(cutout_w, 4),
+                        'cutout_h': round(cutout_h, 4),
+                        'label': k.get('label', '') + ' (no sensor)',
+                    })
+                print(f"  Added {len(unmatched_cfg)} cutout(s) for config keys with no PCB sensor")
+
     params['switches'] = switch_data
     # Legacy field for backward compatibility (just positions)
     params['switch_positions'] = [[s['x'], s['y']] for s in switch_data]
@@ -783,12 +831,32 @@ def compute_params(bbox, switches, usb_connector, mcu, tree=None,
     params['_board_origin_kicad'] = [origin_x, origin_y]
     params['_board_bbox_kicad'] = bbox
 
+    # ----- PCB flip compensation -----
+    # The PCB is assembled "components-down" in the keyboard case (see
+    # silkscreen markings like "THIS SIDE FACE DOWN" on our team's boards).
+    # When the user looks at the top of the assembled keyboard, they see
+    # the PCB mirrored across its X axis. So a switch at PCB-X=10 on a
+    # 100mm-wide board appears at "case-X=90" from the user's perspective,
+    # and a USB port on the left of the PCB ends up on the right of the case.
+    #
+    # Mirror X coordinates of switches, USB, and MCU. Rotation is kept as-is
+    # (the matcher already extracted PCB rotations, and the X mirror combined
+    # with viewing the plate from above produces the correct visual rotation).
+    pcb_len = params['pcb_len']
+    if 'switches' in params:
+        for s in params['switches']:
+            s['x'] = round(pcb_len - s['x'], 4)
+        params['switch_positions'] = [[s['x'], s['y']] for s in params['switches']]
+    if params.get('usb_x') is not None:
+        params['usb_x'] = round(pcb_len - params['usb_x'], 4)
+        if params.get('usb_edge') == 'left':
+            params['usb_edge'] = 'right'
+        elif params.get('usb_edge') == 'right':
+            params['usb_edge'] = 'left'
+    if params.get('mcu_x') is not None:
+        params['mcu_x'] = round(pcb_len - params['mcu_x'], 4)
+
     return params
-
-
-# ──────────────────────────────────────────────
-# 7. Generate OpenSCAD files from params
-# ──────────────────────────────────────────────
 
 def generate_scad_params_file(params, output_path):
     """Write a params.scad file that OpenSCAD can `include`."""
